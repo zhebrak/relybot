@@ -1,7 +1,5 @@
 import argparse
 import asyncio
-import functools
-import logging
 import time
 
 import raftos
@@ -17,28 +15,28 @@ class RelyBot(telepot.aio.Bot):
         self.alarms = raftos.ReplicatedDict(name='alarms')
         self.scheduled_alarms = {}
 
-    async def init_alarms(self):
+    async def start(self):
         now = int(time.time())
         for chat_id, alarm_time in await self.alarms.items():
             if alarm_time >= now:
                 self.schedule_alarm(chat_id, alarm_time - now)
+            else:
+                await self.alarms.delete(chat_id)
 
-    async def start(self):
-        await self.init_alarms()
         asyncio.ensure_future(self.message_loop())
 
     def stop(self):
         raise telepot.exception.StopListening
 
     async def idle(self):
-        while True:
-            await asyncio.sleep(1)
+        while True: await asyncio.sleep(1)
 
     async def on_chat_message(self, msg):
+        chat_id = str(msg['chat']['id'])
+
         if msg['text'].isdigit():
-            timeout = int(msg['text'])
+            timeout = int(msg['text']) * 60
             update_time = int(msg['date'])
-            chat_id = str(msg['chat']['id'])
 
             if chat_id in await self.alarms.get():
                 future = self.scheduled_alarms[chat_id]
@@ -50,15 +48,21 @@ class RelyBot(telepot.aio.Bot):
                 chat_id: update_time + timeout
             })
             self.schedule_alarm(chat_id, timeout)
+            await self.sendMessage(
+                    chat_id, 'I\'ll wake you up in {} minute{}'.format(timeout // 60, 's' if timeout != 1 else '')
+            )
+
+        if msg['text'] in ['/start', '/help']:
+            await self.sendMessage(chat_id, 'Just send me a number')
 
     def schedule_alarm(self, chat_id, timeout):
         future = asyncio.Future()
 
-        def alarm_for_chat_id(future):
+        def alarm_for_chat_id():
             if not future.done():
                 future.set_result(chat_id)
 
-        self.loop.call_later(timeout, alarm_for_chat_id, future)
+        self.loop.call_later(timeout, alarm_for_chat_id)
         self.scheduled_alarms[chat_id] = future
         asyncio.ensure_future(self.alarm(future))
 

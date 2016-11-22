@@ -4,3 +4,4 @@ env/*
 *.log
 *.state_machine
 *.storage
+.idea/*
