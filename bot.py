@@ -49,7 +49,7 @@ class RelyBot(telepot.aio.Bot):
             })
             self.schedule_alarm(chat_id, timeout)
             await self.sendMessage(
-                    chat_id, 'I\'ll wake you up in {} minute{}'.format(timeout // 60, 's' if timeout != 1 else '')
+                    chat_id, 'I\'ll wake you up in {} minute{}'.format(timeout // 60, 's' if timeout != 60 else '')
             )
 
         if msg['text'] in ['/start', '/help']:
